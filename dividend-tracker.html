@@ -35,6 +35,9 @@ const SECTOR_COLORS = {
 };
 const US_TAX = 0.10;
 
+// React hooks (required when using CDN UMD build)
+const { useState, useRef, useEffect } = React;
+
 // ===== HELPERS =====
 function calcAfterTaxDiv(stock) {
   const d = stock.dividends[0];
@@ -672,11 +675,100 @@ function CalendarTab({stocks}){
   );
 }
 
+// ===== MF IMPORT =====
+function guessSector(name, ticker) {
+  const t = ticker + " " + name;
+  if (/銀行|FG|フィナンシャル|証券|保険|リース/.test(t)) return "金融";
+  if (/REIT|リート/.test(t)) return "不動産";
+  if (/通信|NTT|KDDI|ソフトバンク/.test(t)) return "通信";
+  if (/商事|商社|伊藤忠|丸紅|住友商/.test(t)) return "商社";
+  if (/石油|エネルギー|ENEOS|電力|ガス/.test(t)) return "エネルギー";
+  if (/食品|飲料|たばこ|JT|味の素/.test(t)) return "食品・たばこ";
+  if (/医薬|ヘルスケア|製薬|薬品/.test(t)) return "ヘルスケア";
+  if (/素材|化学|鉄鋼|住友金属/.test(t)) return "素材";
+  if (/情報|IT|システム|ソフト|テクノロジ/.test(t)) return "情報技術";
+  if (/公共|水道/.test(t)) return "公共";
+  return "その他";
+}
+function parseMFRow(line, idx) {
+  const cols = line.split("\t");
+  if (cols.length < 6) return null;
+  const clean = s => parseFloat(String(s).replace(/[円,$,\s,]/g, "").replace(/,/g, "")) || 0;
+  const ticker = cols[0].trim();
+  if (!ticker || ticker === "コード" || ticker === "") return null;
+  const name = cols[1].trim();
+  if (!name || name === "銘柄名") return null;
+  const shares = clean(cols[2]);
+  const avgPrice = clean(cols[3]);
+  const price = clean(cols[4]);
+  const divPerShare = cols.length >= 7 ? clean(cols[6]) : 0;
+  if (shares <= 0 || avgPrice <= 0) return null;
+  const market = /^\d+$/.test(ticker) ? "JP" : "US";
+  return {
+    id: Date.now() + idx,
+    ticker, name, market, shares, avgPrice,
+    sector: guessSector(name, ticker),
+    price: price || avgPrice,
+    hist: [price || avgPrice],
+    fin: { per: 0, pbr: 0, roe: 0, eq: 0 },
+    dividends: [{ year: 2024, normalAmount: divPerShare, specialAmount: 0 }],
+    pbrHistory: [], yieldHistory: [], notes: "",
+  };
+}
+function MFImportModal({ onClose, onImport }) {
+  const [text, setText] = useState("");
+  const [preview, setPreview] = useState([]);
+  const handleParse = () => {
+    const rows = text.split("\n").map((l, i) => parseMFRow(l, i)).filter(Boolean);
+    setPreview(rows);
+  };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:C.card,width:"100%",maxWidth:480,maxHeight:"90vh",borderRadius:16,overflowY:"auto",padding:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+          <h2 style={{margin:0,fontSize:16,color:"white"}}>マネーフォワード 貼り付けインポート</h2>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer"}}>✕</button>
+        </div>
+        <p style={{fontSize:12,color:C.faint,marginBottom:10}}>
+          マネーフォワードの「保有株式」画面を開き、表全体を選択してコピー（Ctrl+A → Ctrl+C）し、下に貼り付けてください。
+        </p>
+        <textarea value={text} onChange={e=>{setText(e.target.value);setPreview([]);}}
+          placeholder={"コード\t銘柄名\t保有数量\t平均取得単価\t現在値\t評価額\t1株配当\t年間配当\t利回り\t口座\n1343\tNFJ-REIT\t22\t1,866\t2,059\t45,287円\t11円\t..."}
+          rows={6} style={{width:"100%",padding:"8px 10px",background:C.inner,border:"1px solid #334155",borderRadius:8,color:"white",fontSize:11,resize:"vertical",boxSizing:"border-box",fontFamily:"monospace",marginBottom:8}}/>
+        <button onClick={handleParse}
+          style={{width:"100%",padding:8,borderRadius:8,border:"none",background:C.accent,color:"white",fontSize:13,cursor:"pointer",marginBottom:12}}>
+          読み込む
+        </button>
+        {preview.length > 0 && (<>
+          <p style={{fontSize:12,color:C.green,marginBottom:8}}>✓ {preview.length}銘柄を認識しました</p>
+          <div style={{maxHeight:180,overflowY:"auto",marginBottom:12,border:"1px solid #1e293b",borderRadius:8}}>
+            {preview.map(s=>(
+              <div key={s.ticker+s.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",borderBottom:"1px solid #1e293b",fontSize:12}}>
+                <span style={{color:C.muted}}>{s.ticker} {s.name}</span>
+                <span style={{color:C.faint}}>{s.shares}株 / {s.market} / {s.sector}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>{onImport(preview);onClose();}}
+            style={{width:"100%",padding:10,borderRadius:8,border:"none",background:C.green,color:"white",fontSize:14,cursor:"pointer",fontWeight:"bold"}}>
+            {preview.length}銘柄を追加する
+          </button>
+        </>)}
+        {text.length > 0 && preview.length === 0 && (
+          <p style={{fontSize:11,color:C.red}}>⚠ データを認識できませんでした。マネーフォワードの保有株式ページからコピーしているか確認してください。</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ===== MAIN =====
-export default function DividendTracker(){
+function DividendTracker(){
   const [stocks,setStocks]=useState(INITIAL_STOCKS);
   const [tab,setTab]=useState("銘柄一覧");
   const [selected,setSelected]=useState(null);
+  const [showMF,setShowMF]=useState(false);
   const fileRef=useRef(null);
 
   const totalVal=stocks.reduce((s,st)=>s+st.price*st.shares,0);
@@ -702,6 +794,12 @@ export default function DividendTracker(){
     r.readAsText(file);e.target.value="";
   };
 
+  const handleMFImport=rows=>{
+    const maxId=stocks.reduce((m,s)=>Math.max(m,typeof s.id==="number"?s.id:0),0);
+    const news=rows.map((r,i)=>({...r,id:maxId+i+1}));
+    setStocks(prev=>[...prev,...news]);
+  };
+
   const updateStock=u=>{setStocks(prev=>prev.map(s=>s.id===u.id?u:s));setSelected(u);};
 
   const cards=[
@@ -720,7 +818,10 @@ export default function DividendTracker(){
           <div style={{fontSize:14,fontWeight:"bold"}}>配当ポートフォリオ</div>
           <div style={{fontSize:10,color:C.faint}}>NISA Dividend Tracker</div>
         </div>
-        <button onClick={()=>fileRef.current?.click()} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #334155",background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>📥 CSVインポート</button>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>setShowMF(true)} style={{padding:"6px 10px",borderRadius:8,border:"1px solid #334155",background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>📋 MF貼り付け</button>
+          <button onClick={()=>fileRef.current?.click()} style={{padding:"6px 10px",borderRadius:8,border:"1px solid #334155",background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>📥 CSV</button>
+        </div>
         <input ref={fileRef} type="file" accept=".csv" style={{display:"none"}} onChange={handleCSV}/>
       </div>
       <div style={{padding:"14px 16px"}}>
@@ -745,6 +846,7 @@ export default function DividendTracker(){
         {tab==="配当カレンダー"&&<CalendarTab stocks={stocks}/>}
       </div>
       {selected&&<StockModal stock={selected} onClose={()=>setSelected(null)} onUpdate={updateStock}/>}
+      {showMF&&<MFImportModal onClose={()=>setShowMF(false)} onImport={handleMFImport}/>}
     </div>
   );
 }
