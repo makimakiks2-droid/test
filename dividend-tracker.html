@@ -460,7 +460,7 @@ function StockModal({stock,onClose,onUpdate}){
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",
+        body:JSON.stringify({model:"claude-opus-4-7",max_tokens:800,messages:[{role:"user",
           content:`高配当株の配当継続性をJSON形式で分析。銘柄:${stock.name}(${stock.ticker}) 市場:${stock.market} 配当:${JSON.stringify(stock.dividends.slice(0,5))} 財務:PER=${stock.fin.per},PBR=${stock.fin.pbr},ROE=${stock.fin.roe}%,自己資本比率=${stock.fin.eq}% 連続増配:${cons}年 返答:{"score":1-10,"summary":"総評","positives":["..."],"risks":["..."],"quality":"安定増配|記念配当混在|普通配当のみ|要注意"}`
         }]})
       });
