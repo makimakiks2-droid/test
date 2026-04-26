@@ -1,0 +1,730 @@
+import { useState, useRef } from "react";
+
+// ===== COLORS =====
+const C = {
+  bg: "#060d1a", card: "#0f172a", inner: "#1e293b",
+  text: "white", muted: "#94a3b8", faint: "#64748b",
+  accent: "#0ea5e9", purple: "#6366f1",
+  green: "#10b981", red: "#ef4444", amber: "#f59e0b",
+};
+const SECTOR_COLORS = {
+  "商社":"#0ea5e9","金融":"#6366f1","通信":"#8b5cf6",
+  "ヘルスケア":"#10b981","食品・たばこ":"#f59e0b","不動産":"#ef4444",
+  "エネルギー":"#f97316","素材":"#84cc16","情報技術":"#06b6d4",
+  "公共":"#a78bfa","その他":"#64748b",
+};
+const US_TAX = 0.10;
+
+// ===== HELPERS =====
+function calcAfterTaxDiv(stock) {
+  const d = stock.dividends[0];
+  if (!d) return 0;
+  const raw = d.normalAmount * stock.shares;
+  return stock.market === "US" ? raw * (1 - US_TAX) : raw;
+}
+function calcConsecutiveIncreases(dividends) {
+  const s = [...dividends].sort((a, b) => b.year - a.year);
+  let n = 0;
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s[i].normalAmount > s[i+1].normalAmount) n++;
+    else break;
+  }
+  return n;
+}
+function calcBadge(dividends) {
+  const s = [...dividends].sort((a, b) => b.year - a.year);
+  let inc=0, dec=0, keep=0, special=false;
+  for (let i=0;i<s.length-1;i++){
+    if(s[i].normalAmount>s[i+1].normalAmount)inc++;
+    else if(s[i].normalAmount<s[i+1].normalAmount)dec++;
+    else keep++;
+    if(s[i].specialAmount>0)special=true;
+  }
+  if(s[s.length-1]?.specialAmount>0)special=true;
+  return {inc,dec,keep,special};
+}
+
+// ===== SAMPLE DATA =====
+const INITIAL_STOCKS = [
+  {
+    id:1,ticker:"8058",name:"三菱商事",market:"JP",shares:100,avgPrice:3200,
+    sector:"商社",price:3850,hist:[1800,2100,2800,3100,3500,3850],
+    fin:{per:9.2,pbr:1.1,roe:13.5,eq:38.2},
+    dividends:[
+      {year:2024,normalAmount:210,specialAmount:0},
+      {year:2023,normalAmount:200,specialAmount:0},
+      {year:2022,normalAmount:150,specialAmount:0},
+      {year:2021,normalAmount:80,specialAmount:0},
+      {year:2020,normalAmount:70,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:0.68},{y:2021,v:0.72},{y:2022,v:0.88},{y:2023,v:1.02},{y:2024,v:1.10}],
+    yieldHistory:[{y:2020,v:3.8},{y:2021,v:3.2},{y:2022,v:2.8},{y:2023,v:3.1},{y:2024,v:3.4}],
+    notes:"",
+  },
+  {
+    id:2,ticker:"9432",name:"NTT",market:"JP",shares:500,avgPrice:155,
+    sector:"通信",price:172,hist:[110,118,132,148,158,172],
+    fin:{per:12.8,pbr:1.4,roe:11.2,eq:27.5},
+    dividends:[
+      {year:2024,normalAmount:5.1,specialAmount:0},
+      {year:2023,normalAmount:4.8,specialAmount:0},
+      {year:2022,normalAmount:4.5,specialAmount:0},
+      {year:2021,normalAmount:4.2,specialAmount:0},
+      {year:2020,normalAmount:4.0,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:1.1},{y:2021,v:1.2},{y:2022,v:1.3},{y:2023,v:1.35},{y:2024,v:1.4}],
+    yieldHistory:[{y:2020,v:3.0},{y:2021,v:2.8},{y:2022,v:2.9},{y:2023,v:3.0},{y:2024,v:3.1}],
+    notes:"",
+  },
+  {
+    id:3,ticker:"8316",name:"三井住友FG",market:"JP",shares:30,avgPrice:6800,
+    sector:"金融",price:8200,hist:[3800,4800,5500,6200,7000,8200],
+    fin:{per:10.1,pbr:0.88,roe:9.2,eq:5.1},
+    dividends:[
+      {year:2024,normalAmount:270,specialAmount:0},
+      {year:2023,normalAmount:250,specialAmount:0},
+      {year:2022,normalAmount:220,specialAmount:0},
+      {year:2021,normalAmount:200,specialAmount:0},
+      {year:2020,normalAmount:190,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:0.45},{y:2021,v:0.52},{y:2022,v:0.65},{y:2023,v:0.78},{y:2024,v:0.88}],
+    yieldHistory:[{y:2020,v:4.8},{y:2021,v:4.5},{y:2022,v:4.2},{y:2023,v:3.8},{y:2024,v:3.5}],
+    notes:"",
+  },
+  {
+    id:4,ticker:"8411",name:"みずほFG",market:"JP",shares:200,avgPrice:2200,
+    sector:"金融",price:2980,hist:[1400,1800,2000,2200,2750,2980],
+    fin:{per:9.8,pbr:0.72,roe:7.8,eq:4.2},
+    dividends:[
+      {year:2024,normalAmount:85,specialAmount:10,note:"創業記念配当"},
+      {year:2023,normalAmount:80,specialAmount:0},
+      {year:2022,normalAmount:75,specialAmount:0},
+      {year:2021,normalAmount:75,specialAmount:0},
+      {year:2020,normalAmount:75,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:0.42},{y:2021,v:0.48},{y:2022,v:0.55},{y:2023,v:0.65},{y:2024,v:0.72}],
+    yieldHistory:[{y:2020,v:4.2},{y:2021,v:3.8},{y:2022,v:3.6},{y:2023,v:3.4},{y:2024,v:3.5}],
+    notes:"",
+  },
+  {
+    id:5,ticker:"JNJ",name:"Johnson & Johnson",market:"US",shares:10,avgPrice:155,
+    sector:"ヘルスケア",price:162,hist:[130,138,150,155,160,162],
+    fin:{per:15.2,pbr:5.2,roe:34.8,eq:42.1},
+    dividends:[
+      {year:2024,normalAmount:4.96,specialAmount:0},
+      {year:2023,normalAmount:4.72,specialAmount:0},
+      {year:2022,normalAmount:4.52,specialAmount:0},
+      {year:2021,normalAmount:4.24,specialAmount:0},
+      {year:2020,normalAmount:4.04,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:6.2},{y:2021,v:6.8},{y:2022,v:5.5},{y:2023,v:5.0},{y:2024,v:5.2}],
+    yieldHistory:[{y:2020,v:2.8},{y:2021,v:2.6},{y:2022,v:2.9},{y:2023,v:3.0},{y:2024,v:2.8}],
+    notes:"",
+  },
+  {
+    id:6,ticker:"XOM",name:"ExxonMobil",market:"US",shares:20,avgPrice:95,
+    sector:"エネルギー",price:112,hist:[58,75,88,95,108,112],
+    fin:{per:13.5,pbr:2.1,roe:16.2,eq:47.8},
+    dividends:[
+      {year:2024,normalAmount:3.80,specialAmount:0},
+      {year:2023,normalAmount:3.64,specialAmount:0},
+      {year:2022,normalAmount:3.52,specialAmount:0},
+      {year:2021,normalAmount:3.48,specialAmount:0},
+      {year:2020,normalAmount:3.48,specialAmount:0},
+    ],
+    pbrHistory:[{y:2020,v:1.2},{y:2021,v:1.5},{y:2022,v:2.2},{y:2023,v:2.0},{y:2024,v:2.1}],
+    yieldHistory:[{y:2020,v:5.8},{y:2021,v:4.8},{y:2022,v:3.5},{y:2023,v:3.2},{y:2024,v:3.4}],
+    notes:"",
+  },
+];
+
+// ===== SVG CHARTS =====
+function Sparkline({data,color="#0ea5e9",w=80,h=28}){
+  if(!data||data.length<2)return null;
+  const min=Math.min(...data),max=Math.max(...data),range=max-min||1;
+  const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-min)/range)*h}`).join(" ");
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:"block"}}><polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"/></svg>;
+}
+
+function PriceChart({hist,price}){
+  const W=320,H=140,PL=52,PR=12,PT=10,PB=28;
+  if(!hist||hist.length<2)return <div style={{color:C.faint,fontSize:12}}>データなし</div>;
+  const min=Math.min(...hist)*0.97,max=Math.max(...hist)*1.03,range=max-min;
+  const cw=W-PL-PR,ch=H-PT-PB;
+  const trend=hist[hist.length-1]>=hist[0]?C.green:C.red;
+  const pts=hist.map((v,i)=>`${PL+(i/(hist.length-1))*cw},${PT+ch-((v-min)/range)*ch}`).join(" ");
+  const lx=PL+cw,ly=PT+ch-((hist[hist.length-1]-min)/range)*ch;
+  const ticks=[0,0.25,0.5,0.75,1].map(t=>({v:min+range*t,y:PT+ch*(1-t)}));
+  return(
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+      {ticks.map(({v,y})=>(
+        <g key={y}>
+          <line x1={PL} x2={W-PR} y1={y} y2={y} stroke="#1e293b" strokeWidth="1"/>
+          <text x={PL-4} y={y+4} textAnchor="end" fontSize="9" fill={C.faint}>{v>=10000?`${(v/10000).toFixed(1)}万`:Math.round(v)}</text>
+        </g>
+      ))}
+      <text x={PL} y={H-4} textAnchor="middle" fontSize="9" fill={C.faint}>〜</text>
+      <text x={lx} y={H-4} textAnchor="middle" fontSize="9" fill={C.faint}>現在</text>
+      <polyline points={pts} fill="none" stroke={trend} strokeWidth="2"/>
+      <circle cx={lx} cy={ly} r="3" fill={trend}/>
+      <text x={lx-4} y={ly-7} textAnchor="end" fontSize="9" fill={trend}>{price>=10000?`${(price/10000).toFixed(2)}万`:price}</text>
+    </svg>
+  );
+}
+
+function LineChartTooltip({history,unit=""}){
+  const [tooltip,setTooltip]=useState(null);
+  const [period,setPeriod]=useState("全て");
+  const svgRef=useRef(null);
+  const W=320,H=140,PL=44,PR=56,PT=12,PB=28;
+  const sorted=[...history].sort((a,b)=>a.y-b.y);
+  const filtered=period==="全て"?sorted:sorted.slice(-(parseInt(period)+1));
+  if(filtered.length<2)return null;
+  const vals=filtered.map(d=>d.v);
+  const min=Math.min(...vals),max=Math.max(...vals),avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const range=max-min||0.1;
+  const cw=W-PL-PR,ch=H-PT-PB;
+  const tx=i=>PL+(i/(filtered.length-1))*cw;
+  const ty=v=>PT+ch-((v-min)/range)*ch;
+  const pts=filtered.map((d,i)=>`${tx(i)},${ty(d.v)}`).join(" ");
+  const maxY=ty(max),minY=ty(min),avgY=ty(avg);
+  const onMove=e=>{
+    const svg=svgRef.current;if(!svg)return;
+    const rect=svg.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const px=((cx-rect.left)/rect.width)*W;
+    const idx=Math.max(0,Math.min(filtered.length-1,Math.round(((px-PL)/cw)*(filtered.length-1))));
+    const d=filtered[idx];
+    setTooltip({x:tx(idx),y:ty(d.v),year:d.y,val:d.v,dMax:(d.v-max).toFixed(2),dMin:(d.v-min).toFixed(2)});
+  };
+  return(
+    <div>
+      <div style={{display:"flex",gap:6,marginBottom:8}}>
+        {["1年","2年","3年","全て"].map(p=>(
+          <button key={p} onClick={()=>{setPeriod(p);setTooltip(null);}} style={{padding:"2px 10px",borderRadius:12,border:"1px solid #334155",background:period===p?C.accent:"transparent",color:period===p?"white":C.muted,fontSize:11,cursor:"pointer"}}>{p}</button>
+        ))}
+      </div>
+      <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",touchAction:"none",cursor:"crosshair"}}
+        onMouseMove={onMove} onMouseLeave={()=>setTooltip(null)}
+        onTouchMove={e=>{e.preventDefault();onMove(e);}} onTouchEnd={()=>setTooltip(null)}>
+        {[0,0.5,1].map(t=>{
+          const y=PT+ch*(1-t),v=min+range*t;
+          return(<g key={t}><line x1={PL} x2={W-PR} y1={y} y2={y} stroke="#1e293b" strokeWidth="1"/><text x={PL-4} y={y+4} textAnchor="end" fontSize="9" fill={C.faint}>{v.toFixed(2)}</text></g>);
+        })}
+        <line x1={PL} x2={W-PR} y1={maxY} y2={maxY} stroke={C.red} strokeDasharray="4 3" strokeWidth="1" opacity="0.7"/>
+        <line x1={PL} x2={W-PR} y1={avgY} y2={avgY} stroke={C.amber} strokeDasharray="4 3" strokeWidth="1" opacity="0.7"/>
+        <line x1={PL} x2={W-PR} y1={minY} y2={minY} stroke={C.accent} strokeDasharray="4 3" strokeWidth="1" opacity="0.7"/>
+        <text x={W-PR+4} y={maxY+4} fontSize="9" fill={C.red}>{max.toFixed(2)}</text>
+        <text x={W-PR+4} y={avgY+4} fontSize="9" fill={C.amber}>{avg.toFixed(2)}</text>
+        <text x={W-PR+4} y={minY+4} fontSize="9" fill={C.accent}>{min.toFixed(2)}</text>
+        <polyline points={pts} fill="none" stroke={C.accent} strokeWidth="2"/>
+        {filtered.map((d,i)=><circle key={i} cx={tx(i)} cy={ty(d.v)} r="3" fill={C.accent}/>)}
+        {filtered.map((d,i)=><text key={i} x={tx(i)} y={H-4} textAnchor="middle" fontSize="9" fill={C.faint}>{d.y}</text>)}
+        {tooltip&&(<>
+          <line x1={tooltip.x} x2={tooltip.x} y1={PT} y2={H-PB} stroke="white" strokeWidth="1" opacity="0.4"/>
+          <circle cx={tooltip.x} cy={tooltip.y} r="4" fill="white" stroke={C.accent} strokeWidth="2"/>
+          <rect x={Math.min(tooltip.x+6,W-PR-90)} y={tooltip.y-40} width="86" height="48" rx="4" fill="#1e293b" stroke="#334155" strokeWidth="1"/>
+          <text x={Math.min(tooltip.x+10,W-PR-86)} y={tooltip.y-24} fontSize="9" fill={C.muted}>{tooltip.year}年</text>
+          <text x={Math.min(tooltip.x+10,W-PR-86)} y={tooltip.y-11} fontSize="11" fill="white" fontWeight="bold">{tooltip.val.toFixed(2)}{unit}</text>
+          <text x={Math.min(tooltip.x+10,W-PR-86)} y={tooltip.y+2} fontSize="8" fill={C.muted}>最高比{tooltip.dMax} 最低比+{tooltip.dMin}</text>
+        </>)}
+      </svg>
+    </div>
+  );
+}
+
+function DivBarChart({dividends}){
+  if(!dividends||!dividends.length)return null;
+  const sorted=[...dividends].sort((a,b)=>a.year-b.year);
+  const maxV=Math.max(...sorted.map(d=>d.normalAmount+d.specialAmount));
+  const W=320,H=130,PL=36,PR=90,PT=8,PB=24;
+  const cw=W-PL-PR,ch=H-PT-PB;
+  const bw=Math.min(26,(cw/sorted.length)-4);
+  return(
+    <div>
+      <div style={{display:"flex",gap:12,marginBottom:6,fontSize:11,color:C.muted}}>
+        <span><span style={{display:"inline-block",width:10,height:10,background:C.accent,borderRadius:2,marginRight:4}}/>普通配当</span>
+        <span><span style={{display:"inline-block",width:10,height:10,background:C.amber,borderRadius:2,marginRight:4}}/>記念・特別配当</span>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+        {[0,0.5,1].map(t=>{
+          const y=PT+ch*(1-t),v=Math.round(maxV*t);
+          return(<g key={t}><line x1={PL} x2={W-PR} y1={y} y2={y} stroke="#1e293b" strokeWidth="1"/><text x={PL-4} y={y+4} textAnchor="end" fontSize="9" fill={C.faint}>{v}</text></g>);
+        })}
+        {sorted.map((d,i)=>{
+          const x=PL+(i/sorted.length)*cw+(cw/sorted.length-bw)/2;
+          const nH=(d.normalAmount/maxV)*ch,sH=(d.specialAmount/maxV)*ch;
+          return(<g key={d.year}>
+            <rect x={x} y={PT+ch-nH} width={bw} height={nH} fill={C.accent} rx="2"/>
+            {d.specialAmount>0&&<rect x={x} y={PT+ch-nH-sH} width={bw} height={sH} fill={C.amber} rx="2"/>}
+            <text x={x+bw/2} y={H-4} textAnchor="middle" fontSize="9" fill={C.faint}>{d.year}</text>
+            <text x={W-PR+4} y={PT+ch-nH/2-sH/2+4} fontSize="9" fill={C.muted}>
+              {d.specialAmount>0?`${d.normalAmount}/★+${d.specialAmount}`:String(d.normalAmount)}
+            </text>
+          </g>);
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function DonutChart({sectors}){
+  const [active,setActive]=useState(null);
+  const total=sectors.reduce((s,d)=>s+d.value,0);
+  const CX=90,CY=90,R=65,IR=38;
+  let sa=-Math.PI/2;
+  const slices=sectors.map(s=>{
+    const angle=(s.value/total)*Math.PI*2;
+    const sl={...s,sa,ea:sa+angle};sa+=angle;return sl;
+  });
+  const path=(s,e)=>{
+    const x1=CX+R*Math.cos(s),y1=CY+R*Math.sin(s);
+    const x2=CX+R*Math.cos(e),y2=CY+R*Math.sin(e);
+    const ix1=CX+IR*Math.cos(e),iy1=CY+IR*Math.sin(e);
+    const ix2=CX+IR*Math.cos(s),iy2=CY+IR*Math.sin(s);
+    const lg=e-s>Math.PI?1:0;
+    return `M${x1} ${y1}A${R} ${R} 0 ${lg} 1 ${x2} ${y2}L${ix1} ${iy1}A${IR} ${IR} 0 ${lg} 0 ${ix2} ${iy2}Z`;
+  };
+  const asl=active!=null?slices[active]:null;
+  return(
+    <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+      <svg width="180" height="180" viewBox="0 0 180 180" style={{touchAction:"none"}} onMouseLeave={()=>setActive(null)} onTouchEnd={()=>setActive(null)}>
+        {slices.map((s,i)=>(
+          <path key={s.name} d={path(s.sa,s.ea)} fill={SECTOR_COLORS[s.name]||C.faint} opacity={active==null||active===i?1:0.3}
+            style={{cursor:"pointer"}} onMouseEnter={()=>setActive(i)} onTouchStart={()=>setActive(i)}/>
+        ))}
+        {asl?(
+          <>
+            <text x={CX} y={CY-8} textAnchor="middle" fontSize="10" fill={C.muted}>{asl.name}</text>
+            <text x={CX} y={CY+7} textAnchor="middle" fontSize="14" fontWeight="bold" fill="white">{((asl.value/total)*100).toFixed(1)}%</text>
+            <text x={CX} y={CY+21} textAnchor="middle" fontSize="9" fill={C.muted}>¥{Math.round(asl.value/10000)}万</text>
+          </>
+        ):(
+          <>
+            <text x={CX} y={CY-4} textAnchor="middle" fontSize="10" fill={C.muted}>総評価額</text>
+            <text x={CX} y={CY+13} textAnchor="middle" fontSize="13" fontWeight="bold" fill="white">¥{Math.round(total/10000)}万</text>
+          </>
+        )}
+      </svg>
+      <div style={{flex:1,minWidth:120}}>
+        {slices.map((s,i)=>(
+          <div key={s.name} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,opacity:active==null||active===i?1:0.4,cursor:"pointer"}}
+            onMouseEnter={()=>setActive(i)} onMouseLeave={()=>setActive(null)}>
+            <div style={{width:10,height:10,borderRadius:2,background:SECTOR_COLORS[s.name]||C.faint,flexShrink:0}}/>
+            <span style={{fontSize:11,color:C.muted}}>{s.name}</span>
+            <span style={{fontSize:11,color:C.faint,marginLeft:"auto"}}>{((s.value/total)*100).toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CalendarChart({stocks}){
+  const months=Array.from({length:12},(_,i)=>i+1);
+  const data=months.map(m=>{
+    let jp=0,us=0;
+    stocks.forEach(s=>{
+      const d=s.dividends[0];if(!d)return;
+      const raw=d.normalAmount*s.shares;
+      if(s.market==="JP"){if(m===3||m===9)jp+=raw*0.5;}
+      else{if([3,6,9,12].includes(m))us+=raw*(1-US_TAX)*0.25;}
+    });
+    return{m,jp,us,total:jp+us};
+  });
+  const maxV=Math.max(...data.map(d=>d.total),1);
+  return(
+    <div>
+      <p style={{fontSize:11,color:C.faint,margin:"0 0 12px"}}>※ 概算シミュレーション</p>
+      {data.map(({m,jp,us,total})=>(
+        <div key={m} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <span style={{width:28,fontSize:12,color:C.muted,textAlign:"right"}}>{m}月</span>
+          <div style={{flex:1,height:20,background:"#1e293b",borderRadius:4,overflow:"hidden",display:"flex"}}>
+            <div style={{width:`${(jp/maxV)*100}%`,background:C.accent,transition:"width 0.3s"}}/>
+            <div style={{width:`${(us/maxV)*100}%`,background:C.purple,transition:"width 0.3s"}}/>
+          </div>
+          <span style={{width:68,fontSize:11,color:total>0?"white":C.faint,textAlign:"right"}}>
+            {total>0?`¥${Math.round(total).toLocaleString()}`:"—"}
+          </span>
+        </div>
+      ))}
+      <div style={{display:"flex",gap:16,marginTop:8,fontSize:11,color:C.muted}}>
+        <span><span style={{display:"inline-block",width:10,height:10,background:C.accent,marginRight:4,borderRadius:2}}/>国内株</span>
+        <span><span style={{display:"inline-block",width:10,height:10,background:C.purple,marginRight:4,borderRadius:2}}/>米国株</span>
+      </div>
+    </div>
+  );
+}
+
+// ===== BADGE =====
+function ConsBadge({count}){
+  if(!count)return null;
+  const [icon,col]=count>=10?["🏆",C.amber]:count>=5?["⭐",C.green]:["📈",C.accent];
+  return <span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",borderRadius:12,fontSize:11,background:`${col}22`,color:col,border:`1px solid ${col}55`}}>{icon} 連続増配{count}年</span>;
+}
+
+// ===== STOCK CARD =====
+function StockCard({stock,onClick}){
+  const d=stock.dividends[0];
+  const norm=d?.normalAmount||0;
+  const gainPct=((stock.price-stock.avgPrice)/stock.avgPrice*100).toFixed(1);
+  const yld=stock.price>0?(norm/stock.price*100).toFixed(2):0;
+  const after=calcAfterTaxDiv(stock);
+  const cons=calcConsecutiveIncreases(stock.dividends);
+  const badge=calcBadge(stock.dividends);
+  const sparkCol=stock.hist[stock.hist.length-1]>=stock.hist[0]?C.green:C.red;
+  const pos=parseFloat(gainPct)>=0;
+  return(
+    <div onClick={onClick} style={{background:C.card,borderRadius:12,padding:14,marginBottom:10,border:"1px solid #1e293b",cursor:"pointer"}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent}
+      onMouseLeave={e=>e.currentTarget.style.borderColor="#1e293b"}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{padding:"1px 6px",borderRadius:6,fontSize:10,fontWeight:"bold",background:stock.market==="JP"?"#1d4ed8":"#4c1d95",color:"white"}}>{stock.market}</span>
+          <span style={{fontSize:11,color:C.faint}}>{stock.sector}</span>
+        </div>
+        <Sparkline data={stock.hist} color={sparkCol}/>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+        <div>
+          <span style={{fontSize:15,fontWeight:"bold",color:"white"}}>{stock.name}</span>
+          <span style={{fontSize:11,color:C.faint,marginLeft:6}}>{stock.ticker}</span>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:20,fontWeight:"bold",color:C.accent}}>{yld}%</div>
+          <div style={{fontSize:10,color:C.faint}}>利回り</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:13,color:"white"}}>{stock.market==="JP"?`¥${stock.price.toLocaleString()}`:`$${stock.price}`}</span>
+        <span style={{fontSize:12,color:pos?C.green:C.red}}>{pos?"+":""}{gainPct}%</span>
+      </div>
+      {cons>0&&<div style={{marginBottom:8}}><ConsBadge count={cons}/></div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+        {[{l:"PER",v:stock.fin.per},{l:"PBR",v:stock.fin.pbr},{l:"税後配当",v:`¥${Math.round(after).toLocaleString()}`}].map(({l,v})=>(
+          <div key={l} style={{background:C.inner,borderRadius:6,padding:"5px 8px",textAlign:"center"}}>
+            <div style={{fontSize:9,color:C.faint}}>{l}</div>
+            <div style={{fontSize:12,color:C.muted}}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+        {badge.inc>0&&<span style={{fontSize:10,color:C.green,background:`${C.green}22`,padding:"1px 6px",borderRadius:8}}>増配×{badge.inc}</span>}
+        {badge.dec>0&&<span style={{fontSize:10,color:C.red,background:`${C.red}22`,padding:"1px 6px",borderRadius:8}}>減配×{badge.dec}</span>}
+        {badge.keep>0&&<span style={{fontSize:10,color:C.faint,background:"#1e293b",padding:"1px 6px",borderRadius:8}}>維持×{badge.keep}</span>}
+        {badge.special&&<span style={{fontSize:10,color:C.amber,background:`${C.amber}22`,padding:"1px 6px",borderRadius:8}}>★記念配当あり</span>}
+      </div>
+    </div>
+  );
+}
+
+// ===== MODAL =====
+function StockModal({stock,onClose,onUpdate}){
+  const [apiKey,setApiKey]=useState("");
+  const [ai,setAi]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [notes,setNotes]=useState(stock.notes||"");
+  const cons=calcConsecutiveIncreases(stock.dividends);
+  const d=stock.dividends[0];
+  const norm=d?.normalAmount||0;
+  const after=calcAfterTaxDiv(stock);
+  const tax=stock.market==="US"?norm*stock.shares*US_TAX:0;
+  const yld=stock.price>0?(norm/stock.price*100).toFixed(2):0;
+  const gainPct=((stock.price-stock.avgPrice)/stock.avgPrice*100).toFixed(1);
+  const pos=parseFloat(gainPct)>=0;
+
+  const runAI=async()=>{
+    if(!apiKey){alert("APIキーを入力してください");return;}
+    setLoading(true);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",
+          content:`高配当株の配当継続性をJSON形式で分析。銘柄:${stock.name}(${stock.ticker}) 市場:${stock.market} 配当:${JSON.stringify(stock.dividends.slice(0,5))} 財務:PER=${stock.fin.per},PBR=${stock.fin.pbr},ROE=${stock.fin.roe}%,自己資本比率=${stock.fin.eq}% 連続増配:${cons}年 返答:{"score":1-10,"summary":"総評","positives":["..."],"risks":["..."],"quality":"安定増配|記念配当混在|普通配当のみ|要注意"}`
+        }]})
+      });
+      const data=await res.json();
+      const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
+      if(m)setAi(JSON.parse(m[0]));
+    }catch(e){alert("エラー:"+e.message);}
+    setLoading(false);
+  };
+
+  const sec=(title,children)=>(
+    <div style={{background:C.inner,borderRadius:10,padding:14,marginBottom:14}}>
+      <h3 style={{fontSize:13,color:C.muted,margin:"0 0 10px"}}>{title}</h3>
+      {children}
+    </div>
+  );
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:C.card,width:"100%",maxWidth:480,maxHeight:"92vh",borderRadius:"16px 16px 0 0",overflowY:"auto",padding:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{margin:0,fontSize:18,color:"white"}}>銘柄詳細</h2>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+
+        {/* ① header */}
+        {sec("",<>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
+            <span style={{padding:"1px 6px",borderRadius:6,fontSize:11,fontWeight:"bold",background:stock.market==="JP"?"#1d4ed8":"#4c1d95",color:"white"}}>{stock.market}</span>
+            <span style={{fontSize:11,color:C.faint}}>{stock.sector}</span>
+            <ConsBadge count={cons}/>
+          </div>
+          <div style={{fontSize:20,fontWeight:"bold",color:"white",marginBottom:2}}>{stock.name}</div>
+          <div style={{fontSize:12,color:C.faint,marginBottom:8}}>{stock.ticker} · {stock.shares}株保有</div>
+          <div style={{display:"flex",gap:16,alignItems:"flex-end"}}>
+            <div>
+              <div style={{fontSize:22,fontWeight:"bold",color:"white"}}>{stock.market==="JP"?`¥${stock.price.toLocaleString()}`:`$${stock.price}`}</div>
+              <div style={{fontSize:12,color:pos?C.green:C.red}}>含み損益 {pos?"+":""}{gainPct}%</div>
+            </div>
+            <div style={{marginLeft:"auto",textAlign:"right"}}>
+              <div style={{fontSize:24,fontWeight:"bold",color:C.accent}}>{yld}%</div>
+              <div style={{fontSize:10,color:C.faint}}>配当利回り</div>
+            </div>
+          </div>
+        </>)}
+
+        {/* ② price chart */}
+        {sec("株価推移",<PriceChart hist={stock.hist} price={stock.price}/>)}
+
+        {/* ③ financials */}
+        {sec("財務指標",
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {[{l:"PER",v:stock.fin.per},{l:"PBR",v:stock.fin.pbr},{l:"ROE",v:`${stock.fin.roe}%`},{l:"自己資本比率",v:`${stock.fin.eq}%`}].map(({l,v})=>(
+              <div key={l} style={{background:C.card,borderRadius:8,padding:"8px 4px",textAlign:"center"}}>
+                <div style={{fontSize:9,color:C.faint}}>{l}</div>
+                <div style={{fontSize:13,fontWeight:"bold",color:"white"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ④ PBR chart */}
+        {sec("PBR推移",<LineChartTooltip history={stock.pbrHistory} unit="倍"/>)}
+
+        {/* ⑤ dividend history */}
+        {sec("配当履歴",<DivBarChart dividends={stock.dividends}/>)}
+
+        {/* ⑥ yield chart */}
+        {sec("実績配当利回り推移",<LineChartTooltip history={stock.yieldHistory} unit="%"/>)}
+
+        {/* ⑦ NISA */}
+        {sec("NISA口座 年間配当（税引後）明細",<>
+          <div style={{fontSize:13,color:"white",marginBottom:6}}>税引前: ¥{Math.round(norm*stock.shares).toLocaleString()}</div>
+          {stock.market==="JP"?(
+            <>
+              <div style={{fontSize:12,color:C.green,marginBottom:4}}>国内税: ¥0（NISA非課税）</div>
+              <div style={{fontSize:11,color:C.faint,marginBottom:8}}>NISA口座：国内源泉税（通常20.315%）が非課税</div>
+            </>
+          ):(
+            <>
+              <div style={{fontSize:12,color:C.red,marginBottom:4}}>米国源泉税10%: −¥{Math.round(tax).toLocaleString()}</div>
+              <div style={{fontSize:11,color:C.faint,marginBottom:8}}>NISAでも米国源泉税10%は回避不可。外国税額控除はNISA口座では使えません。</div>
+            </>
+          )}
+          <div style={{fontSize:16,fontWeight:"bold",color:C.accent}}>受取金額: ¥{Math.round(after).toLocaleString()}</div>
+        </>)}
+
+        {/* ⑧ AI */}
+        {sec("AI銘柄分析",<>
+          {!ai&&<>
+            <input type="password" placeholder="Anthropic APIキーを入力" value={apiKey} onChange={e=>setApiKey(e.target.value)}
+              style={{width:"100%",padding:"8px 10px",background:C.card,border:"1px solid #334155",borderRadius:8,color:"white",fontSize:12,marginBottom:8,boxSizing:"border-box"}}/>
+            <button onClick={runAI} disabled={loading} style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:loading?C.faint:C.accent,color:"white",fontSize:13,cursor:"pointer"}}>
+              {loading?"分析中 ●●●":"AI分析を実行"}
+            </button>
+          </>}
+          {ai&&<>
+            <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:10}}>
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <circle cx="30" cy="30" r="24" fill="none" stroke="#1e293b" strokeWidth="6"/>
+                <circle cx="30" cy="30" r="24" fill="none" stroke={C.accent} strokeWidth="6"
+                  strokeDasharray={`${(ai.score/10)*150.8} 150.8`} strokeLinecap="round" transform="rotate(-90 30 30)"/>
+                <text x="30" y="36" textAnchor="middle" fontSize="16" fontWeight="bold" fill="white">{ai.score}</text>
+              </svg>
+              <div>
+                <div style={{fontSize:11,color:C.muted}}>配当継続性スコア</div>
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:12,background:`${C.amber}33`,color:C.amber}}>{ai.quality}</span>
+              </div>
+            </div>
+            <p style={{fontSize:12,color:C.muted,margin:"0 0 8px"}}>{ai.summary}</p>
+            <div style={{marginBottom:6}}>
+              <div style={{fontSize:11,color:C.green,marginBottom:3}}>✓ ポジティブ</div>
+              {ai.positives?.map((p,i)=><div key={i} style={{fontSize:11,color:C.muted,paddingLeft:8,marginBottom:2}}>• {p}</div>)}
+            </div>
+            <div>
+              <div style={{fontSize:11,color:C.red,marginBottom:3}}>⚠ リスク</div>
+              {ai.risks?.map((r,i)=><div key={i} style={{fontSize:11,color:C.muted,paddingLeft:8,marginBottom:2}}>• {r}</div>)}
+            </div>
+            <button onClick={()=>setAi(null)} style={{marginTop:8,fontSize:11,color:C.faint,background:"none",border:"none",cursor:"pointer"}}>再分析</button>
+          </>}
+        </>)}
+
+        {/* ⑨ notes */}
+        {sec("メモ",
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)} onBlur={()=>onUpdate({...stock,notes})}
+            placeholder="投資メモを入力..." rows={3}
+            style={{width:"100%",padding:"8px 10px",background:C.card,border:"1px solid #334155",borderRadius:8,color:"white",fontSize:12,resize:"vertical",boxSizing:"border-box"}}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== TABS =====
+function StockListTab({stocks,onSelect}){
+  const [market,setMarket]=useState("全て");
+  const [sort,setSort]=useState("利回り順");
+  const filtered=stocks
+    .filter(s=>market==="全て"||(market==="🇯🇵 国内"?s.market==="JP":s.market==="US"))
+    .sort((a,b)=>{
+      if(sort==="利回り順")return(b.dividends[0]?.normalAmount/b.price)-(a.dividends[0]?.normalAmount/a.price);
+      if(sort==="評価額順")return(b.price*b.shares)-(a.price*a.shares);
+      if(sort==="連続増配年数順")return calcConsecutiveIncreases(b.dividends)-calcConsecutiveIncreases(a.dividends);
+      return a.name.localeCompare(b.name);
+    });
+  return(
+    <div>
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+        {["全て","🇯🇵 国内","🇺🇸 米国"].map(m=>(
+          <button key={m} onClick={()=>setMarket(m)} style={{padding:"4px 12px",borderRadius:16,border:"1px solid #334155",background:market===m?C.accent:"transparent",color:market===m?"white":C.muted,fontSize:12,cursor:"pointer"}}>{m}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        {["利回り順","評価額順","連続増配年数順","名前順"].map(s=>(
+          <button key={s} onClick={()=>setSort(s)} style={{padding:"3px 10px",borderRadius:14,border:"1px solid #334155",background:sort===s?C.inner:"transparent",color:sort===s?"white":C.faint,fontSize:11,cursor:"pointer"}}>{s}</button>
+        ))}
+      </div>
+      {filtered.map(s=><StockCard key={s.id} stock={s} onClick={()=>onSelect(s)}/>)}
+    </div>
+  );
+}
+
+function SectorTab({stocks}){
+  const sMap={};
+  stocks.forEach(s=>{const v=s.price*s.shares;sMap[s.sector]=(sMap[s.sector]||0)+v;});
+  const sectors=Object.entries(sMap).map(([name,value])=>({name,value}));
+  const jpDiv=stocks.filter(s=>s.market==="JP").reduce((sum,s)=>sum+calcAfterTaxDiv(s),0);
+  const usRaw=stocks.filter(s=>s.market==="US").reduce((sum,s)=>sum+(s.dividends[0]?.normalAmount||0)*s.shares,0);
+  const usAfter=usRaw*(1-US_TAX);
+  const total=jpDiv+usAfter;
+  return(
+    <div>
+      <div style={{background:C.card,borderRadius:12,padding:16,marginBottom:14}}>
+        <h3 style={{fontSize:13,color:C.muted,margin:"0 0 12px"}}>セクター別評価額</h3>
+        <DonutChart sectors={sectors}/>
+      </div>
+      <div style={{background:C.card,borderRadius:12,padding:16}}>
+        <h3 style={{fontSize:13,color:C.muted,margin:"0 0 12px"}}>NISA口座 年間配当金内訳</h3>
+        {[
+          {label:"🇯🇵 国内株（NISA非課税）",val:jpDiv,sub:"税金 ¥0",subCol:C.green},
+          {label:"🇺🇸 米国株（源泉税10%控除後）",val:usAfter,sub:`税金 −¥${Math.round(usRaw-usAfter).toLocaleString()}`,subCol:C.red},
+        ].map(({label,val,sub,subCol})=>(
+          <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #1e293b"}}>
+            <span style={{fontSize:12,color:C.muted}}>{label}</span>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:13,color:"white"}}>¥{Math.round(val).toLocaleString()}</div>
+              <div style={{fontSize:10,color:subCol}}>{sub}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
+          <span style={{fontSize:13,fontWeight:"bold",color:"white"}}>合計受取額</span>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:16,fontWeight:"bold",color:C.accent}}>¥{Math.round(total).toLocaleString()}</div>
+            <div style={{fontSize:11,color:C.faint}}>月平均 ¥{Math.round(total/12).toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalendarTab({stocks}){
+  return(
+    <div style={{background:C.card,borderRadius:12,padding:16}}>
+      <h3 style={{fontSize:13,color:C.muted,margin:"0 0 12px"}}>配当カレンダー（月別・税引後）</h3>
+      <CalendarChart stocks={stocks}/>
+    </div>
+  );
+}
+
+// ===== MAIN =====
+export default function DividendTracker(){
+  const [stocks,setStocks]=useState(INITIAL_STOCKS);
+  const [tab,setTab]=useState("銘柄一覧");
+  const [selected,setSelected]=useState(null);
+  const fileRef=useRef(null);
+
+  const totalVal=stocks.reduce((s,st)=>s+st.price*st.shares,0);
+  const totalCost=stocks.reduce((s,st)=>s+st.avgPrice*st.shares,0);
+  const totalDiv=stocks.reduce((s,st)=>s+calcAfterTaxDiv(st),0);
+  const gainPct=((totalVal-totalCost)/totalCost*100).toFixed(1);
+  const yldPct=(totalDiv/totalCost*100).toFixed(2);
+  const pos=totalVal>=totalCost;
+
+  const handleCSV=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const lines=ev.target.result.trim().split("\n");
+      const news=[];
+      for(let i=1;i<lines.length;i++){
+        const [ticker,name,market,shares,avgPrice,sector]=lines[i].split(",");
+        if(!ticker)continue;
+        news.push({id:Date.now()+i,ticker:ticker.trim(),name:name.trim(),market:market.trim(),shares:parseInt(shares),avgPrice:parseFloat(avgPrice),sector:sector?.trim()||"その他",price:parseFloat(avgPrice),hist:[parseFloat(avgPrice)],fin:{per:0,pbr:0,roe:0,eq:0},dividends:[],pbrHistory:[],yieldHistory:[],notes:""});
+      }
+      setStocks(prev=>[...prev,...news]);
+    };
+    r.readAsText(file);e.target.value="";
+  };
+
+  const updateStock=u=>{setStocks(prev=>prev.map(s=>s.id===u.id?u:s));setSelected(u);};
+
+  const cards=[
+    {label:"評価総額",val:`¥${Math.round(totalVal/10000)}万`,sub:`コスト ¥${Math.round(totalCost/10000)}万`},
+    {label:"含み損益",val:`${pos?"+":""}${gainPct}%`,sub:`${pos?"+":""}¥${Math.round(totalVal-totalCost).toLocaleString()}`,col:pos?C.green:C.red},
+    {label:"年間配当（税引後）",val:`¥${Math.round(totalDiv).toLocaleString()}`,sub:`月平均 ¥${Math.round(totalDiv/12).toLocaleString()}`,col:C.accent},
+    {label:"実質利回り",val:`${yldPct}%`,sub:"NISA計算ベース",col:C.accent},
+  ];
+
+  return(
+    <div style={{fontFamily:"'Noto Sans JP','Hiragino Sans',sans-serif",background:C.bg,minHeight:"100vh",color:"white",maxWidth:480,margin:"0 auto"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');`}</style>
+      {/* header */}
+      <div style={{position:"sticky",top:0,zIndex:50,background:`${C.bg}ee`,backdropFilter:"blur(8px)",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid #1e293b"}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:"bold"}}>配当ポートフォリオ</div>
+          <div style={{fontSize:10,color:C.faint}}>NISA Dividend Tracker</div>
+        </div>
+        <button onClick={()=>fileRef.current?.click()} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #334155",background:"transparent",color:C.muted,fontSize:11,cursor:"pointer"}}>📥 CSVインポート</button>
+        <input ref={fileRef} type="file" accept=".csv" style={{display:"none"}} onChange={handleCSV}/>
+      </div>
+      <div style={{padding:"14px 16px"}}>
+        {/* summary */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {cards.map(card=>(
+            <div key={card.label} style={{background:C.card,borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontSize:10,color:C.faint,marginBottom:4}}>{card.label}</div>
+              <div style={{fontSize:18,fontWeight:"bold",color:card.col||"white"}}>{card.val}</div>
+              <div style={{fontSize:10,color:C.faint,marginTop:2}}>{card.sub}</div>
+            </div>
+          ))}
+        </div>
+        {/* tabs */}
+        <div style={{display:"flex",gap:0,marginBottom:14,background:C.card,borderRadius:10,padding:4}}>
+          {[["銘柄一覧","📋"],["セクター分析","🥧"],["配当カレンダー","📅"]].map(([t,icon])=>(
+            <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"7px 4px",borderRadius:8,border:"none",background:tab===t?C.inner:"transparent",color:tab===t?"white":C.faint,fontSize:11,cursor:"pointer",fontWeight:tab===t?"bold":"normal"}}>{icon} {t}</button>
+          ))}
+        </div>
+        {tab==="銘柄一覧"&&<StockListTab stocks={stocks} onSelect={setSelected}/>}
+        {tab==="セクター分析"&&<SectorTab stocks={stocks}/>}
+        {tab==="配当カレンダー"&&<CalendarTab stocks={stocks}/>}
+      </div>
+      {selected&&<StockModal stock={selected} onClose={()=>setSelected(null)} onUpdate={updateStock}/>}
+    </div>
+  );
+}
