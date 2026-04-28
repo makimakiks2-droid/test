@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楽天ROOM 投稿テンプレート | ひよりママ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+    background: #f5f0eb;
+    padding: 40px 20px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    font-size: 18px;
+    color: #888;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+  }
+  .section-title {
+    text-align: center;
+    font-size: 13px;
+    color: #aaa;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin: 60px 0 24px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 400px);
+    gap: 32px;
+    justify-content: center;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  /* ========== テンプレート共通 ========== */
+  .card {
+    width: 400px;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    cursor: pointer;
+  }
+  .card-label {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-top: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* ========== A: 白背景×ミニマル ========== */
+  .template-a {
+    background: #fff;
+  }
+  .template-a .photo-area {
+    width: 100%;
+    height: 240px;
+    background: #f9f6f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .template-a .photo-area span {
+    border: 1.5px dashed #ddd;
+    padding: 20px 32px;
+    border-radius: 4px;
+  }
+  .template-a .text-area {
+    padding: 20px 24px 16px;
+  }
+  .template-a .tag {
+    display: inline-block;
+    background: #f5efe8;
+    color: #c4966a;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .template-a .headline {
+    font-size: 17px;
+    font-weight: bold;
+    line-height: 1.5;
+    color: #333;
+    margin-bottom: 8px;
+  }
+  .template-a .sub {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.6;
+  }
+  .template-a .badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #e8534a;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  /* ========== B: くすみピンク×テキスト強め ========== */
+  .template-b {
+    background: #f9ede8;
+  }
+  .template-b .top-strip {
+    background: #e8907a;
+    color: #fff;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 3px;
+    padding: 8px;
+  }
+  .template-b .photo-area {
+    width: 100%;
+    height: 210px;
+    background: #f2ddd8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 13px;
+  }
+  .template-b .photo-area span {
+    border: 1.5px dashed #e0c4be;
+    padding: 18px 28px;
+    border-radius: 4px;
+  }
+  .template-b .benefit-box {
+    margin: 0 20px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: -20px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .template-b .benefit-main {
+    font-size: 16px;
+    font-weight: bold;
+    color: #c06050;
+    line-height: 1.5;
+  }
+  .template-b .benefit-sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+  .template-b .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 0;
+  }
+  .template-b .hashtags {
+    font-size: 10px;
+    color: #c08070;
+  }
+  .template-b .icon-row {
+    font-size: 10px;
+    color: #bbb;
+  }
+
+  /* ========== C: ダーク×高級感 ========== */
+  .template-c {
+    background: #2a2520;
+  }
+  .template-c .photo-area {
+    width: 100%;
+    height: 260px;
+    background: #3a3028;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 13px;
+    position: relative;
+  }
+  .template-c .photo-area span {
+    border: 1px dashed #555;
+    padding: 18px 28px;
+    border-radius: 4px;
+  }
+  .template-c .photo-area::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(transparent, #2a2520);
+  }
+  .template-c .text-area {
+    padding: 16px 24px 20px;
+  }
+  .template-c .eyebrow {
+    font-size: 10px;
+    color: #c4966a;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+  }
+  .template-c .headline {
+    font-size: 18px;
+    font-weight: bold;
+    color: #f0ece6;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .template-c .divider {
+    width: 30px;
+    height: 1px;
+    background: #c4966a;
+    margin-bottom: 10px;
+  }
+  .template-c .sub {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.6;
+  }
+
+  /* ========== D: フラットレイ風 ========== */
+  .template-d {
+    background: #fff;
+    border: 1px solid #eee;
+  }
+  .template-d .photo-area {
+    width: 100%;
+    height: 280px;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 13px;
+    position: relative;
+  }
+  .template-d .photo-area span {
+    border: 1.5px dashed #ddd;
+    padding: 18px 28px;
+    border-radius: 4px;
+  }
+  .template-d .overlay-tag {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(255,255,255,0.9);
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #555;
+    letter-spacing: 1px;
+  }
+  .template-d .bottom {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    gap: 14px;
+  }
+  .template-d .icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #f5efe8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .template-d .bottom-text .name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+  }
+  .template-d .bottom-text .desc {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  /* ========== E: グルメ特化 ========== */
+  .template-e {
+    background: #faf7f0;
+  }
+  .template-e .photo-area {
+    width: 100%;
+    height: 250px;
+    background: #f2ece0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 13px;
+    position: relative;
+  }
+  .template-e .photo-area span {
+    border: 1.5px dashed #e0d8c8;
+    padding: 18px 28px;
+    border-radius: 4px;
+  }
+  .template-e .stamp {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #c8a46a;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1.4;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .template-e .text-area {
+    padding: 18px 22px;
+  }
+  .template-e .headline {
+    font-size: 16px;
+    font-weight: bold;
+    color: #5a4030;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .template-e .row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .template-e .chip {
+    background: #ede4d4;
+    color: #9a7a5a;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* ========== 使い方ガイド ========== */
+  .guide {
+    max-width: 840px;
+    margin: 60px auto 0;
+    background: #fff;
+    border-radius: 8px;
+    padding: 32px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .guide h2 {
+    font-size: 16px;
+    color: #555;
+    border-bottom: 2px solid #f5efe8;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .guide-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .guide-item {
+    background: #faf8f5;
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .guide-item .label {
+    font-size: 11px;
+    color: #c4966a;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .guide-item p {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.7;
+  }
+  .guide-item strong { color: #444; }
+
+  /* ========== コピー用テキスト ========== */
+  .copy-section {
+    max-width: 840px;
+    margin: 32px auto 80px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 32px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .copy-section h2 {
+    font-size: 16px;
+    color: #555;
+    border-bottom: 2px solid #f5efe8;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .copy-box {
+    background: #f8f6f3;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .copy-box .scene {
+    font-size: 11px;
+    color: #c4966a;
+    font-weight: bold;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  .copy-box .text {
+    font-size: 13px;
+    color: #444;
+    line-height: 1.8;
+    white-space: pre-line;
+  }
+</style>
+</head>
+<body>
+
+<h1>楽天ROOM 投稿デザインテンプレート｜ひよりママ</h1>
+
+<p class="section-title">Template A ── 白背景ミニマル（育児グッズ汎用）</p>
+<div class="grid">
+  <div>
+    <div class="card template-a">
+      <div class="badge">NEW</div>
+      <div class="photo-area">
+        <span>商品写真をここに配置</span>
+      </div>
+      <div class="text-area">
+        <div class="tag">0歳育児</div>
+        <div class="headline">寝かしつけが<br>10分短くなった</div>
+        <div class="sub">スリーパー / 実際に使って1ヶ月レポ</div>
+      </div>
+    </div>
+    <div class="card-label">▲ ベネフィット→実感値を数字で出す</div>
+  </div>
+
+  <div>
+    <div class="card template-a">
+      <div class="photo-area">
+        <span>商品写真をここに配置</span>
+      </div>
+      <div class="text-area">
+        <div class="tag">出産祝いに</div>
+        <div class="headline">もらって一番<br>うれしかったもの</div>
+        <div class="sub">マザーズバッグ / 「これにして」と言いたい1択</div>
+      </div>
+    </div>
+    <div class="card-label">▲ 「もらって」視点は検索需要が高い</div>
+  </div>
+</div>
+
+<p class="section-title">Template B ── くすみピンク×ベネフィット強調（母の日・ギフト向け）</p>
+<div class="grid">
+  <div>
+    <div class="card template-b">
+      <div class="top-strip">MOTHER'S DAY GIFT</div>
+      <div class="photo-area">
+        <span>商品写真をここに配置</span>
+      </div>
+      <div class="benefit-box">
+        <div class="benefit-main">「ありがとう」より<br>伝わるギフト、見つけた</div>
+        <div class="benefit-sub">おくるみ / 肌触りが段違いで産後ママに喜ばれる理由</div>
+      </div>
+      <div class="bottom-row">
+        <div class="hashtags">#母の日ギフト #出産祝い</div>
+        <div class="icon-row">楽天ROOM ひよりママ</div>
+      </div>
+    </div>
+    <div class="card-label">▲ コピーは「感情ワード」を先に立てる</div>
+  </div>
+
+  <div>
+    <div class="card template-b">
+      <div class="top-strip">母の日スイーツ2026</div>
+      <div class="photo-area">
+        <span>スイーツ写真をここに配置</span>
+      </div>
+      <div class="benefit-box">
+        <div class="benefit-main">全国2位の洋菓子店が<br>つくる罪深さ</div>
+        <div class="benefit-sub">フルーツ大福 / 産後ご褒美に自分買いしても◎</div>
+      </div>
+      <div class="bottom-row">
+        <div class="hashtags">#母の日スイーツ #お取り寄せ</div>
+        <div class="icon-row">楽天ROOM ひよりママ</div>
+      </div>
+    </div>
+    <div class="card-label">▲ 数字・権威ワードで信頼性UP</div>
+  </div>
+</div>
+
+<p class="section-title">Template C ── ダーク×高級感（グルメギフト・父の日向け）</p>
+<div class="grid">
+  <div>
+    <div class="card template-c">
+      <div class="photo-area">
+        <span>商品写真をここに配置</span>
+      </div>
+      <div class="text-area">
+        <div class="eyebrow">FATHER'S DAY 2026</div>
+        <div class="headline">「モノより体験」な<br>パパへのギフト</div>
+        <div class="divider"></div>
+        <div class="sub">お取り寄せグルメ / 家族で食卓を囲む時間がプレゼント</div>
+      </div>
+    </div>
+    <div class="card-label">▲ 高単価商品は「世界観」で売る</div>
+  </div>
+</div>
+
+<p class="section-title">Template D ── フラットレイ（日常使い・収納・コーデ系）</p>
+<div class="grid">
+  <div>
+    <div class="card template-d">
+      <div class="photo-area">
+        <span>フラットレイ写真をここに配置<br>（真上から撮影）</span>
+        <div class="overlay-tag">愛用中 ✓</div>
+      </div>
+      <div class="bottom">
+        <div class="icon-circle">👶</div>
+        <div class="bottom-text">
+          <div class="name">今月のベビーグッズまとめ</div>
+          <div class="desc">0歳育児中ひよりママの<br>リアル使用品レポ</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-label">▲ 「まとめ」投稿はコレクション向き</div>
+  </div>
+</div>
+
+<p class="section-title">Template E ── グルメ特化（お取り寄せ・スイーツ）</p>
+<div class="grid">
+  <div>
+    <div class="card template-e">
+      <div class="photo-area">
+        <span>グルメ写真をここに配置</span>
+        <div class="stamp">リピ<br>確定</div>
+      </div>
+      <div class="text-area">
+        <div class="headline">育休中に見つけた<br>最高のご褒美スイーツ</div>
+        <div class="row">
+          <span class="chip">#お取り寄せスイーツ</span>
+          <span class="chip">#無添加</span>
+          <span class="chip">#手土産</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-label">▲ スタンプ（リピ確定・殿堂入り）は視線を集める</div>
+  </div>
+</div>
+
+<!-- 使い方ガイド -->
+<div class="guide">
+  <h2>写真を撮るときのポイント</h2>
+  <div class="guide-grid">
+    <div class="guide-item">
+      <div class="label">空白（余白）の作り方</div>
+      <p>商品の周囲に<strong>全体の30〜40%の余白</strong>を残す。<br>背景が白・ベージュ・グレーなら何も置かなくてOK。<br>詰め込みすぎると安く見える。</p>
+    </div>
+    <div class="guide-item">
+      <div class="label">視認性を高めるライティング</div>
+      <p>窓から入る<strong>自然光＋レフ板代わりのA4白紙</strong>が最強。<br>影が出る場合は白紙を反対側に置くだけで均一に。<br>夜は撮影しない。電球色NG。</p>
+    </div>
+    <div class="guide-item">
+      <div class="label">ベネフィットをキャッチーに伝える</div>
+      <p><strong>「〇〇だった → △△になった」</strong>の変化を1行で。<br>例：「泣き止まなかった → 3分で寝た」<br>数字・体験・感情ワードの順に強くなる。</p>
+    </div>
+    <div class="guide-item">
+      <div class="label">人気デザインを少しずらす方法</div>
+      <p>参考アカウントの構図を真似て<strong>色だけ変える</strong>か<br><strong>テキストの言い回しだけ変える</strong>。<br>パクりにならずトレンド感だけ取れる。</p>
+    </div>
+  </div>
+</div>
+
+<!-- コピー文テンプレート -->
+<div class="copy-section">
+  <h2>コピーテンプレート（そのまま使える文章）</h2>
+
+  <div class="copy-box">
+    <div class="scene">育児グッズ｜汎用</div>
+    <div class="text">【商品名】使ってみた正直レポ
+
+0歳育児中のリアルな感想です。
+○○が△△で、ずっと悩んでたのが解決しました。
+
+同じ時期のママにおすすめしたい一品。
+
+#0歳育児 #ベビーグッズ #赤ちゃんのいる生活 #出産準備 #楽天ROOM</div>
+  </div>
+
+  <div class="copy-box">
+    <div class="scene">グルメ｜お取り寄せ</div>
+    <div class="text">育休中に見つけた神スイーツ🍰
+
+【商品名】を初めて食べたんですが、
+○○な感じで、育児の合間のご褒美にちょうどよかったです。
+
+手土産にも使えるし、自分買いも◎
+
+#お取り寄せスイーツ #お取り寄せ #手土産スイーツ #楽天購入品 #楽天ROOM</div>
+  </div>
+
+  <div class="copy-box">
+    <div class="scene">母の日・父の日ギフト</div>
+    <div class="text">【母の日】プレゼントに悩んでる方へ
+
+産後ママが「これほしかった！」と思ったもの、
+正直に紹介します。
+
+もらって一番うれしかったのは【商品名】でした。
+使い心地が◯◯で、産後のしんどい時期に本当に助かりました。
+
+#母の日ギフト #母の日 #出産祝い #ベビーギフト #楽天ROOM</div>
+  </div>
+</div>
+
+</body>
+</html>
